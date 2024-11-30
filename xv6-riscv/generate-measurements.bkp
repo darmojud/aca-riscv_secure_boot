@@ -1,0 +1,21 @@
+hash_kernel1=`sha256sum kernel1 | cut -d " " -f 1`
+
+# Copy the basic stuff
+printf "#ifndef MEASUREMENTS_H
+#define MEASUREMENTS_H
+
+#if   defined(KERNEL1)
+  BYTE trusted_kernel_hash[32] = {" > measurements.h
+
+byte_array=""
+for ((i = 0; i < ${#hash_kernel1}; i += 2)); do
+    byte_array+='0x'${hash_kernel1:$i:2}','
+done
+echo "$byte_array};" >> measurements.h
+
+echo "#endif" >> measurements.h
+echo "#endif" >> measurements.h
+
+cat measurements.h
+
+cp measurements.h bootloader/

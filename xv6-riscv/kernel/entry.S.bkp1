@@ -1,0 +1,67 @@
+.section .text
+.global _entry
+_entry:
+    # Save current supervisor state
+    csrr t0, sstatus       # Save supervisor status register
+    csrr t1, sepc          # Save supervisor program counter
+
+    # Save the original mtvec value
+    csrr t2, mtvec
+    la t3, original_mtvec
+    sw t2, 0(t3)
+
+    # Set up mtvec for machine-mode trap handler
+    la t2, machine_trap_handler
+    csrw mtvec, t2
+
+    # Set MPP (Machine Previous Privilege) to Supervisor mode
+    csrr t3, mstatus
+    li t4, (0x1 << 11)     # MPP field: Supervisor mode
+    or t3, t3, t4
+    csrw mstatus, t3
+
+    # Perform mret to enter machine mode
+    mret
+
+# Machine-mode trap handler
+machine_trap_handler:
+    # Read mhartid and store it in a global variable
+    csrr a0, mhartid       # Read the hart ID
+    la t0, mhartid_store
+    sw a0, 0(t0)           # Store mhartid in memory
+
+    # Restore mtvec to previous state
+    la t1, original_mtvec
+    lw t2, 0(t1)
+    csrw mtvec, t2
+
+    # Return to Supervisor mode
+    mret
+
+# Supervisor mode resumes here
+supervisor_continue:
+    # Restore supervisor registers
+    csrw sstatus, t0
+    csrw sepc, t1
+
+    # Load mhartid from memory and use it
+    la t2, mhartid_store
+    lw a1, 0(t2)           # Load mhartid value into a register
+
+    # Continue normal execution in supervisor mode
+    call start
+
+# Infinite spin (fallback in case of error)
+spin:
+    j spin
+
+# Data section
+.section .data
+.global mhartid_store
+mhartid_store:
+    .word 0                # Space to store the hart ID
+
+.global original_mtvec
+original_mtvec:
+    .word 0                # Space to store the original mtvec value
+

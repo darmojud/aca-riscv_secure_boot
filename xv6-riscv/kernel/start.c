@@ -8,7 +8,7 @@ void main();
 void timerinit();
 
 // entry.S needs one stack per CPU.
-__attribute__ ((aligned (16))) char stack0[4096 * NCPU];
+//__attribute__ ((aligned (16))) char stack0[4096 * NCPU];
 
 // entry.S jumps here in machine mode on stack0.
 void
@@ -16,8 +16,8 @@ start()
 {
   unsigned long mstatus;
   asm volatile("csrr %0, mstatus" : "=r" (mstatus));
-  unsigned long privilege_level = (mstatus >> 11) & 0x3;
-  if (privilege_level == 0) {
+  //unsigned long privilege_level = (mstatus >> 11) & 0x3;
+/*  if (privilege_level == 0) {
 	  printf("user");
   } else if (privilege_level == 1) {
 	   printf("super");
@@ -25,17 +25,18 @@ start()
   } else if (privilege_level == 3) {
 	   printf("machine");
 	  // Machine Mode
-  }
+  }*/
   // set M Previous Privilege mode to machine
   unsigned long x1 = r_mstatus();
   unsigned long x2 = r_mstatus();
   x1 &= ~MSTATUS_MPP_MASK;
   x1 |= MSTATUS_MPP_M;
-  w_mstatus(x1);
+  //w_mstatus(x1);
+  
 
   asm volatile("csrr %0, mstatus" : "=r" (mstatus));
-  privilege_level = (mstatus >> 11) & 0x3;
-  if (privilege_level == 0) {
+ // privilege_level = (mstatus >> 11) & 0x3;
+  /*if (privilege_level == 0) {
 	  printf("user");
   } else if (privilege_level == 1) {
 	   printf("super");
@@ -43,7 +44,7 @@ start()
   } else if (privilege_level == 3) {
 	   printf("machine");
 	  // Machine Mode
-  }
+  }*/
 
   w_menvcfg(r_menvcfg() | (1L << 63)); 
   
@@ -53,8 +54,8 @@ start()
   w_mstatus(x2);
 
   asm volatile("csrr %0, mstatus" : "=r" (mstatus));
-  privilege_level = (mstatus >> 11) & 0x3;
-  if (privilege_level == 0) {
+  //privilege_level = (mstatus >> 11) & 0x3;
+  /*if (privilege_level == 0) {
 	  printf("user");
   } else if (privilege_level == 1) {
 	   printf("super");
@@ -62,7 +63,7 @@ start()
   } else if (privilege_level == 3) {
 	   printf("machine");
 	  // Machine Mode
-  }
+  }*/
 
   unsigned long sp_value, mepc_value;
   // Debug print of sp and mepc
@@ -71,7 +72,7 @@ start()
 		  "csrr %1, mepc\n"        // Read mepc into mepc_value
 		  : "=r" (sp_value), "=r" (mepc_value) // Output operands
 	      );
-  printf(" before jump to main Debug: sp = 0x%lx, mepc = 0x%lx\n", sp_value, mepc_value);
+  //printf(" before jump to main Debug: sp = 0x%lx, mepc = 0x%lx\n", sp_value, mepc_value);
   // set M Exception Program Counter to main, for mret.
   // requires gcc -mcmodel=medany
   w_mepc((uint64)main);
@@ -82,7 +83,7 @@ start()
 		  "csrr %1, mepc\n"        // Read mepc into mepc_value
 		  : "=r" (sp_value), "=r" (mepc_value) // Output operands
 	      );
-  printf(" after jump to main Debug: sp = 0x%lx, mepc = 0x%lx\n", sp_value, mepc_value);
+  //printf(" after jump to main Debug: sp = 0x%lx, mepc = 0x%lx\n", sp_value, mepc_value);
 
   // disable paging for now.
   w_satp(0);
@@ -98,13 +99,13 @@ start()
   w_pmpcfg0(0xf);
 
   // ask for clock interrupts.
-  int id = r_mhartid();
-  w_tp(id);
+  //int id = r_mhartid();
+  //`w_tp(id);
 
 //  unsigned long mstatus;
   asm volatile("csrr %0, mstatus" : "=r" (mstatus));
- privilege_level = (mstatus >> 11) & 0x3;
-  if (privilege_level == 0) {
+ //privilege_level = (mstatus >> 11) & 0x3;
+  /*if (privilege_level == 0) {
 	  printf("user");
   } else if (privilege_level == 1) {
 	   printf("super");
@@ -112,9 +113,8 @@ start()
   } else if (privilege_level == 3) {
 	   printf("machine");
 	  // Machine Mode
-  }
+  }*/
   timerinit();
-
   // keep each CPU's hartid in its tp register, for cpuid().
 
   // switch to supervisor mode and jump to main().

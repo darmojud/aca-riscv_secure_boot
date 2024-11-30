@@ -97,7 +97,6 @@ bool is_secure_boot(void)
   kernel_copy(NORMAL, &b);
   sha256_update(&sha256_ctx, (const unsigned char *)b.data, rem_size);
   sha256_final(&sha256_ctx, sys_info_ptr->observed_kernel_measurement);
-  // panic("Kernel hash: %s\n", sys_info_ptr->observed_kernel_measurement);
 
   /* Three more tasks required below:
    *  1. Compare observed measurement with expected hash
@@ -109,9 +108,6 @@ bool is_secure_boot(void)
   {
     verification = false;
   }
-
-  if (!verification)
-    setup_recovery_kernel();
 
   return verification;
 }
@@ -127,63 +123,11 @@ void start()
   w_tp(id);
 
   // set M Previous Privilege mode to Supervisor, for mret.
-  unsigned long x = r_mstatus();
-  x &= ~MSTATUS_MPP_MASK;
-  x |= MSTATUS_MPP_S;
-  w_mstatus(x);
-
-  // disable paging
-  w_satp(0);
-
-/* CSE 536: Unless kernelpmp[1-2] booted, allow all memory
- * regions to be accessed in S-mode. */
-#if !defined(KERNELPMP1) || !defined(KERNELPMP2)
-  w_pmpaddr0(0x3fffffffffffffull);
-  w_pmpcfg0(0xf);
-#endif
-
-/* CSE 536: With kernelpmp1, isolate upper 10MBs using TOR */
-#if defined(KERNELPMP1)
-  // w_pmpaddr0(0x0ull);
-  // w_pmpcfg0(0x0);
-  unsigned long long bootloader_start = 0x80000000ULL;
-  unsigned long long top_address = bootloader_start + (117ULL * 1024 * 1024);
-  unsigned long long pmpaddr0_value = (top_address >> 2);
-  w_pmpaddr0(pmpaddr0_value);
-  w_pmpcfg0((1 << 0) | (1 << 1) | (1 << 2) | (1 << 3));
-#endif
-
-/* CSE 536: With kernelpmp2, isolate 118-120 MB and 122-126 MB using NAPOT */
-#if defined(KERNELPMP2)
-  unsigned long long bootloader_start = 0x80000000ULL;
-  unsigned long long top_address = bootloader_start + (118ULL * 1024 * 1024);
-  unsigned long long pmpaddr0_value = (top_address >> 2);
-  w_pmpaddr0(pmpaddr0_value);
-  w_pmpcfg0((1 << 0) | (1 << 1) | (1 << 2) | (1 << 3));
-
-  unsigned long long base = bootloader_start + (120ULL * 1024 * 1024);
-  unsigned long long size = 2ULL * 1024 * 1024;
-  base = base >> 2;
-  size = size >> 3;
-  unsigned long long pmpaddr1_value = base + size - 1;
-  w_pmpaddr1(pmpaddr1_value);
-  w_pmpcfg0((1 << 8) | (1 << 9) | (1 << 10) | (1 << 11) | (1 << 12) | (1 << 0) | (1 << 1) | (1 << 2) | (1 << 3));
-
-  base = bootloader_start + (126ULL * 1024 * 1024);
-  size = 2ULL * 1024 * 1024;
-  base = base >> 2;
-  size = size >> 3;
-  unsigned long long pmpaddr2_value = base + size - 1;
-  w_pmpaddr2(pmpaddr2_value);
-  w_pmpcfg0((1 << 16) | (1 << 17) | (1 << 18) | (1 << 19) | (1 << 20) | (1 << 8) | (1 << 9) | (1 << 10) | (1 << 11) | (1 << 12) | (1 << 0) | (1 << 1) | (1 << 2) | (1 << 3));
-#endif
 
   /* CSE 536: Verify if the kernel is untampered for secure boot */
   if (!is_secure_boot())
   {
-    /* Skip loading since we should have booted into a recovery kernel
-     * in the function is_secure_boot() */
-    goto out;
+	  return;
   }
 
   /* CSE 536: Load the NORMAL kernel binary (assuming secure boot passed). */
@@ -202,14 +146,12 @@ void start()
    memmove((void *)kernel_load_addr + ((i - 4) * BSIZE), b.data, BSIZE);
   }
 
-  //uint64 kernel_entry = find_kernel_entry_addr(NORMAL);
-  uint64 kernel_entry = 0x80000000;
+  uint64 kernel_entry = find_kernel_entry_addr(NORMAL);
 
   /* CSE 536: Write the correct kernel entry point */
-  //printf("Kernel Entry Address: 0x%lx\n", kernel_entry);
   w_mepc((uint64)kernel_entry);
 
-out:
+//out:
   /* CSE 536: Provide system information to the kernel. */
   sys_info_ptr->bl_start = (uint64)&_entry;
   sys_info_ptr->bl_end = (uint64)end;
@@ -220,9 +162,9 @@ out:
   /* CSE 536: Send the observed hash value to the kernel (using sys_info_ptr) */
 
   // delegate all interrupts and exceptions to supervisor mode.
-  w_medeleg(0xffff);
+/*  w_medeleg(0xffff);
   w_mideleg(0xffff);
-  w_sie(r_sie() | SIE_SEIE | SIE_STIE | SIE_SSIE);
+  w_sie(r_sie() | SIE_SEIE | SIE_STIE | SIE_SSIE);*/
 
   // return address fix
   uint64 addr = (uint64)panic;
@@ -231,5 +173,7 @@ out:
                : "r"(addr));
 
   // switch to supervisor mode and jump to main().
-  asm volatile("mret");
+  //asm volatile("mret");
+  kernel_entry = find_kernel_entry_addr(NORMAL);
+  asm volatile("jalr zero, %0" : : "r"(kernel_entry));
 }

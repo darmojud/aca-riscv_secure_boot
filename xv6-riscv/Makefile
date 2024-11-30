@@ -81,7 +81,7 @@ CFLAGS += -I.
 CFLAGS += $(shell $(CC) -fno-stack-protector -E -x c /dev/null >/dev/null 2>&1 && echo -fno-stack-protector)
 
 # Append the kernel version
-KERNELVERSION ?= KERNEL2
+KERNELVERSION ?= KERNEL1
 CFLAGS += -D$(KERNELVERSION)
 
 # Disable PIE when possible (for Ubuntu 16.10 toolchain)

@@ -21,5 +21,5 @@ _entry:
 
         jal start
 
-spin:
-        j spin
+#spin:
+#        j spin
